@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChessSolver - Automatic Stockfish Engine</title>
+    <title>Advanced Chess Solver & Practice Engine</title>
     <!-- Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chess.js for move validation and game state -->
@@ -32,13 +32,6 @@
         .highlight-last {
             background-color: rgba(155, 199, 0, 0.41) !important;
         }
-        .piece-img {
-            width: 85%;
-            height: 85%;
-            object-fit: contain;
-            pointer-events: none;
-            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2));
-        }
     </style>
 </head>
 <body class="bg-[#1e1e1e] text-gray-100 font-sans min-h-screen flex flex-col items-center justify-between p-4">
@@ -46,8 +39,8 @@
     <!-- Header -->
     <header class="w-full max-w-5xl flex flex-col md:flex-row items-center justify-between pb-4 border-b border-gray-800 gap-4">
         <div>
-            <h1 class="text-2xl font-bold tracking-wide text-emerald-400">ChessSolver</h1>
-            <p class="text-xs text-gray-400">Automatic Stockfish Worker & GitHub Pieces</p>
+            <h1 class="text-2xl font-bold tracking-wide text-emerald-400">Chess Solver Pro</h1>
+            <p class="text-xs text-gray-400">Classic Vector Pieces & Auto-Flipping Perspective</p>
         </div>
         
         <!-- Mode Toggles & Controls -->
@@ -69,30 +62,36 @@
         <div class="w-full lg:w-80 flex flex-col gap-4">
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
                 <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Session Status</h2>
-                
-                <div id="statusBanner" class="p-3 rounded-xl bg-emerald-950/50 border border-emerald-800/60 text-emerald-300 text-sm font-semibold mb-4">
-                    Turn: White to move
+                <div id="statusBanner" class="p-3 rounded-xl bg-emerald-950/50 border border-emerald-800/60 text-emerald-300 text-sm font-medium mb-4">
+                    Your Turn: Make Move 1 of 2.
                 </div>
                 
                 <div class="space-y-3 text-xs text-gray-300">
                     <div class="flex justify-between items-center bg-gray-800/60 px-3 py-2 rounded-lg">
-                        <span class="text-gray-400">Board Perspective</span>
-                        <span id="roleDisplay" class="font-bold text-white capitalize">White Down</span>
+                        <span class="text-gray-400">Current Role</span>
+                        <span id="roleDisplay" class="font-bold text-white capitalize">White</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-gray-800/60 px-3 py-2 rounded-lg">
+                        <span class="text-gray-400">Step Count</span>
+                        <span id="stepDisplay" class="font-bold text-emerald-400">1 / 2 (Your Move)</span>
                     </div>
                 </div>
 
-                <div class="mt-5 pt-4 border-t border-gray-800">
-                    <button onclick="undoLastMove()" class="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-medium transition border border-gray-700">
-                        ↩️ Undo Move
+                <div class="mt-5 pt-4 border-t border-gray-800 flex gap-2">
+                    <button onclick="triggerSolver()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-900/30">
+                        Get Best Move & Arrow
+                    </button>
+                    <button onclick="undoLastMove()" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-medium transition border border-gray-700">
+                        Undo
                     </button>
                 </div>
             </div>
 
             <!-- Solver Output Box -->
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Stockfish Analysis</h3>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Engine Recommendation</h3>
                 <div id="solverOutput" class="text-sm font-mono text-emerald-300 bg-black/40 p-3 rounded-xl border border-gray-800 min-h-[44px] flex items-center">
-                    Initializing Stockfish Engine...
+                    Make your 2 moves to reveal the next best move.
                 </div>
             </div>
         </div>
@@ -116,7 +115,7 @@
 
     <!-- Footer -->
     <footer class="text-center text-xs text-gray-500 pb-2">
-        ChessSolver • Automatic Stockfish Integration
+        Advanced Chess Solver Engine • Classic Vector Assets
     </footer>
 
     <!-- Script Logic -->
@@ -142,19 +141,24 @@
         let lastBestMove = null;
         let stockfish = null;
 
-        // Initialize Stockfish securely using a Blob Worker to bypass CORS blocks
+        // Initialize Stockfish using standard Worker with URL fallback
         function initStockfish() {
             try {
-                const sfScript = 'importScripts("https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js");';
-                const blob = new Blob([sfScript], { type: 'application/javascript' });
-                stockfish = new Worker(URL.createObjectURL(blob));
+                // Stockfish Web Worker initialized via CDN with Blob wrapper for cross-origin safety
+                const workerCode = `
+                    importScripts("https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js");
+                `;
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                const workerUrl = URL.createObjectURL(blob);
+                stockfish = new Worker(workerUrl);
 
                 stockfish.onmessage = function(event) {
-                    const message = event.data;
-                    if (message && message.startsWith("bestmove")) {
+                    const message = typeof event.data === 'string' ? event.data : event.data.cmd || '';
+                    
+                    if (message.startsWith("bestmove")) {
                         const moveParts = message.split(" ");
                         const bestMoveStr = moveParts[1];
-                        if (bestMoveStr && bestMoveStr.length >= 4) {
+                        if (bestMoveStr && bestMoveStr.length >= 4 && bestMoveStr !== '(none)') {
                             const from = bestMoveStr.substring(0, 2);
                             const to = bestMoveStr.substring(2, 4);
                             lastBestMove = { from, to };
@@ -166,15 +170,42 @@
 
                             document.getElementById('solverOutput').innerHTML = `👉 Best Move (${turnColor}): <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${san}</strong> (${from} → ${to})`;
                             drawArrow();
+                        } else {
+                            document.getElementById('solverOutput').innerText = "No moves evaluated.";
                         }
                     }
                 };
 
                 stockfish.postMessage("uci");
+                stockfish.postMessage("isready");
                 document.getElementById('solverOutput').innerText = "Stockfish engine ready.";
             } catch (e) {
-                console.error("Stockfish worker initialization failed:", e);
-                document.getElementById('solverOutput').innerText = "Error loading engine worker.";
+                console.error("Primary Stockfish worker failed, trying direct Worker construction...", e);
+                try {
+                    stockfish = new Worker("https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js");
+                    stockfish.onmessage = function(event) {
+                        const message = event.data;
+                        if (typeof message === 'string' && message.startsWith("bestmove")) {
+                            const moveParts = message.split(" ");
+                            const bestMoveStr = moveParts[1];
+                            if (bestMoveStr && bestMoveStr.length >= 4 && bestMoveStr !== '(none)') {
+                                const from = bestMoveStr.substring(0, 2);
+                                const to = bestMoveStr.substring(2, 4);
+                                lastBestMove = { from, to };
+                                const tempGame = new Chess(game.fen());
+                                const moveResult = tempGame.move({ from, to, promotion: 'q' });
+                                const san = moveResult ? moveResult.san : `${from}-${to}`;
+                                const turnColor = game.turn() === 'w' ? 'White' : 'Black';
+                                document.getElementById('solverOutput').innerHTML = `👉 Best Move (${turnColor}): <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${san}</strong> (${from} → ${to})`;
+                                drawArrow();
+                            }
+                        }
+                    };
+                    stockfish.postMessage("uci");
+                } catch (err) {
+                    console.error("All worker initializations failed:", err);
+                    document.getElementById('solverOutput').innerText = "Engine worker blocked by browser security.";
+                }
             }
         }
 
@@ -195,9 +226,9 @@
                 return;
             }
 
-            document.getElementById('solverOutput').innerText = "Stockfish analyzing best move...";
+            document.getElementById('solverOutput').innerText = "Stockfish analyzing position...";
             stockfish.postMessage("position fen " + game.fen());
-            stockfish.postMessage("go movetime 600");
+            stockfish.postMessage("go movetime 500");
         }
 
         function setPlayerRole(role) {
@@ -391,6 +422,8 @@
             const toCol = filesMap[lastBestMove.to[0]];
             const toRow = ranksMap[lastBestMove.to[1]];
 
+            if (fromCol === undefined || fromRow === undefined || toCol === undefined || toRow === undefined) return;
+
             const x1 = (fromCol + 0.5) * 12.5;
             const y1 = (fromRow + 0.5) * 12.5;
             const x2 = (toCol + 0.5) * 12.5;
@@ -429,7 +462,7 @@
         window.onload = () => {
             initStockfish();
             renderBoard();
-            setTimeout(triggerStockfish, 600);
+            setTimeout(triggerStockfish, 500);
         };
     </script>
 </body>
