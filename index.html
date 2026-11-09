@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChessSolver - 3000-Rated Bot Hint Engine</title>
+    <title>ChessSolver - True Stockfish Engine</title>
     <!-- Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chess.js for move validation and game state -->
@@ -47,7 +47,7 @@
     <header class="w-full max-w-5xl flex flex-col md:flex-row items-center justify-between pb-4 border-b border-gray-800 gap-4">
         <div>
             <h1 class="text-2xl font-bold tracking-wide text-emerald-400">ChessSolver</h1>
-            <p class="text-xs text-gray-400">3000-Rated Bot Hint Engine with Flip Perspective & GitHub Pieces</p>
+            <p class="text-xs text-gray-400">Powered by Official Stockfish Web Worker & GitHub Pieces</p>
         </div>
         
         <!-- Mode Toggles & Controls -->
@@ -82,8 +82,8 @@
                 </div>
 
                 <div class="mt-5 pt-4 border-t border-gray-800 flex flex-col gap-2">
-                    <button onclick="requestHint()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2">
-                        💡 Get 3000-Rated Bot Hint
+                    <button onclick="requestStockfishHint()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2">
+                        💡 Get Stockfish 3000+ Hint
                     </button>
                     <button onclick="undoLastMove()" class="w-full py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-medium transition border border-gray-700">
                         ↩️ Undo Move
@@ -93,9 +93,9 @@
 
             <!-- Solver Output Box -->
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Bot Analysis</h3>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Stockfish Analysis</h3>
                 <div id="solverOutput" class="text-sm font-mono text-emerald-300 bg-black/40 p-3 rounded-xl border border-gray-800 min-h-[44px] flex items-center">
-                    Make your move or click Hint for 3000-rated guidance.
+                    Initializing Stockfish Engine...
                 </div>
             </div>
         </div>
@@ -119,7 +119,7 @@
 
     <!-- Footer -->
     <footer class="text-center text-xs text-gray-500 pb-2">
-        ChessSolver • 3000-Rated Hint Integration
+        ChessSolver • True Stockfish Worker Integration
     </footer>
 
     <!-- Script Logic -->
@@ -144,6 +144,38 @@
         let lastMove = null;
         let lastBestMove = null;
 
+        // Initialize Official Stockfish Web Worker via CDN
+        let stockfish = null;
+        try {
+            stockfish = new Worker("https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js");
+        } catch (e) {
+            console.error("Worker creation failed:", e);
+        }
+
+        if (stockfish) {
+            stockfish.onmessage = function(event) {
+                const message = event.data;
+                if (message && message.startsWith("bestmove")) {
+                    const moveParts = message.split(" ");
+                    const bestMoveStr = moveParts[1];
+                    if (bestMoveStr && bestMoveStr.length >= 4) {
+                        const from = bestMoveStr.substring(0, 2);
+                        const to = bestMoveStr.substring(2, 4);
+                        lastBestMove = { from, to };
+
+                        const tempGame = new Chess(game.fen());
+                        const moveResult = tempGame.move({ from, to, promotion: 'q' });
+                        const san = moveResult ? moveResult.san : `${from}-${to}`;
+                        const turnColor = game.turn() === 'w' ? 'White' : 'Black';
+
+                        document.getElementById('solverOutput').innerHTML = `💡 Stockfish Hint (${turnColor}): <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${san}</strong> (${from} → ${to})`;
+                        drawArrow();
+                    }
+                }
+            };
+            stockfish.postMessage("uci");
+        }
+
         function setPlayerRole(role) {
             playerRole = role;
             document.getElementById('modeWhiteBtn').className = role === 'white' ? "px-4 py-1.5 text-xs font-semibold rounded-lg transition-all bg-emerald-600 text-white shadow" : "px-4 py-1.5 text-xs font-semibold rounded-lg transition-all text-gray-400 hover:text-white";
@@ -158,7 +190,7 @@
             possibleMoves = [];
             lastMove = null;
             lastBestMove = null;
-            document.getElementById('solverOutput').innerText = "Make your move or click Hint for guidance.";
+            document.getElementById('solverOutput').innerText = "Stockfish ready. Click Hint for grandmaster analysis.";
             updateUI();
         }
 
@@ -250,10 +282,10 @@
                     lastMove = { from: result.from, to: result.to };
                     selectedSquare = null;
                     possibleMoves = [];
-                    lastBestMove = null; // Clear previous hint arrow upon making a move
+                    lastBestMove = null;
 
                     updateUI();
-                    document.getElementById('solverOutput').innerText = "Move made. Click 'Get 3000-Rated Bot Hint' for the next master move.";
+                    document.getElementById('solverOutput').innerText = "Move registered. Click 'Get Stockfish 3000+ Hint' for optimal play.";
                 } else {
                     if (piece && piece.color === game.turn()) {
                         selectedSquare = sq;
@@ -316,144 +348,19 @@
             historyContainer.scrollTop = historyContainer.scrollHeight;
         }
 
-        // ========================================================
-        // 🧠 3000-RATED BOT HINT ENGINE (Depth 4 + Piece-Square Tables)
-        // ========================================================
-        const openingBook = {
-            "": ["e4", "d4", "Nf3", "c4"],
-            "e4": ["e5", "c5", "e6", "d6"],
-            "e4.e5": ["Nf3", "Bc4", "Nc3"],
-            "e4.c5": ["Nf3", "Nc3", "d4"],
-            "d4": ["Nf6", "d5", "e6"],
-            "d4.Nf6": ["c4", "Nf3", "Nc3"]
-        };
-
-        const pawnsSquare = [
-             0,  0,  0,  0,  0,  0,  0,  0,
-            50, 50, 50, 50, 50, 50, 50, 50,
-            10, 10, 20, 30, 30, 20, 10, 10,
-             5,  5, 10, 25, 25, 10,  5,  5,
-             0,  0,  0, 20, 20,  0,  0,  0,
-             5, -5,-10,  0,  0,-10, -5,  5,
-             5, 10, 10,-20,-20, 10, 10,  5,
-             0,  0,  0,  0,  0,  0,  0,  0
-        ];
-
-        const knightsSquare = [
-            -10,-5,-5,-5,-5,-5,-5,-10,
-             -5, 0, 0, 0, 0, 0, 0, -5,
-             -5, 0, 5, 5, 5, 5, 0, -5,
-             -5, 0, 5,10,10, 5, 0, -5,
-             -5, 0, 5,10,10, 5, 0, -5,
-             -5, 0, 5, 5, 5, 5, 0, -5,
-             -5, 0, 0, 0, 0, 0, 0, -5,
-            -10,-5,-5,-5,-5,-5,-5,-10
-        ];
-
-        const pieceValues = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
-
-        function evaluateBoard(g) {
-            let totalEvaluation = 0;
-            const board = g.board();
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    const p = board[r][c];
-                    if (p) {
-                        const index = p.color === 'w' ? (7 - r) * 8 + c : r * 8 + c;
-                        let pstable = 0;
-                        if (p.type === 'p') pstable = pawnsSquare[index];
-                        if (p.type === 'n') pstable = knightsSquare[index];
-                        const val = pieceValues[p.type] + pstable;
-                        totalEvaluation += (p.color === 'w' ? val : -val);
-                    }
-                }
-            }
-            return totalEvaluation;
-        }
-
-        function minimax(g, depth, alpha, beta, isMaximizing) {
-            if (depth === 0 || g.game_over()) {
-                return { score: evaluateBoard(g), move: null };
-            }
-
-            let moves = g.moves({ verbose: true });
-            if (moves.length === 0) return { score: evaluateBoard(g), move: null };
-
-            moves.sort((a, b) => {
-                let scoreA = a.captured ? pieceValues[a.captured] * 10 : 0;
-                let scoreB = b.captured ? pieceValues[b.captured] * 10 : 0;
-                return scoreB - scoreA;
-            });
-
-            let bestMove = moves[0];
-
-            if (isMaximizing) {
-                let maxEval = -Infinity;
-                for (let m of moves) {
-                    g.move(m);
-                    const evaluation = minimax(g, depth - 1, alpha, beta, false).score;
-                    g.undo();
-                    if (evaluation > maxEval) {
-                        maxEval = evaluation;
-                        bestMove = m;
-                    }
-                    alpha = Math.max(alpha, evaluation);
-                    if (beta <= alpha) break;
-                }
-                return { score: maxEval, move: bestMove };
-            } else {
-                let minEval = Infinity;
-                for (let m of moves) {
-                    g.move(m);
-                    const evaluation = minimax(g, depth - 1, alpha, beta, true).score;
-                    g.undo();
-                    if (evaluation < minEval) {
-                        minEval = evaluation;
-                        bestMove = m;
-                    }
-                    beta = Math.min(beta, evaluation);
-                    if (beta <= alpha) break;
-                }
-                return { score: minEval, move: bestMove };
-            }
-        }
-
-        function requestHint() {
+        function requestStockfishHint() {
             if (game.game_over()) {
                 document.getElementById('solverOutput').innerText = "Game over!";
                 return;
             }
+            if (!stockfish) {
+                document.getElementById('solverOutput').innerText = "Stockfish worker failed to load.";
+                return;
+            }
 
-            document.getElementById('solverOutput').innerText = "Consulting 3000-rated bot logic...";
-
-            setTimeout(() => {
-                const history = game.history();
-                const bookKey = history.join('.');
-                let selectedMove = null;
-
-                if (openingBook[bookKey]) {
-                    const bookMoves = openingBook[bookKey];
-                    const chosenSan = bookMoves[Math.floor(Math.random() * bookMoves.length)];
-                    const legalMoves = game.moves({ verbose: true });
-                    selectedMove = legalMoves.find(m => m.san === chosenSan);
-                }
-
-                if (!selectedMove) {
-                    const isMax = game.turn() === 'w';
-                    const searchResult = minimax(game, 4, -Infinity, Infinity, isMax);
-                    selectedMove = searchResult.move;
-                }
-                
-                if (selectedMove) {
-                    lastBestMove = { from: selectedMove.from, to: selectedMove.to };
-                    const moveSan = selectedMove.san;
-                    const turnColor = game.turn() === 'w' ? 'White' : 'Black';
-                    document.getElementById('solverOutput').innerHTML = `💡 Bot Hint (${turnColor}): <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${moveSan}</strong> (${selectedMove.from} → ${selectedMove.to})`;
-                    drawArrow();
-                } else {
-                    document.getElementById('solverOutput').innerText = "No moves available.";
-                }
-            }, 20);
+            document.getElementById('solverOutput').innerText = "Stockfish calculating best move...";
+            stockfish.postMessage("position fen " + game.fen());
+            stockfish.postMessage("go movetime 1000"); // 1 full second of deep background calculation
         }
 
         function drawArrow() {
@@ -495,18 +402,19 @@
             defs.appendChild(marker);
             svg.appendChild(defs);
 
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', `${x1}%`);
-            line.setAttribute('y1', `${y1}%`);
-            line.setAttribute('x2', `${x2}%`);
-            line.setAttribute('y2', `${y2}%`);
-            line.setAttribute('stroke', '#34d399');
-            line.setAttribute('stroke-width', '4');
-            line.setAttribute('stroke-linecap', 'round');
-            line.setAttribute('marker-end', 'url(#arrowhead)');
-            line.setAttribute('class', 'drop-shadow-md');
-
-            svg.appendChild(line);
+            const line = document.exit ? null : document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            if (line) {
+                line.setAttribute('x1', `${x1}%`);
+                line.setAttribute('y1', `${y1}%`);
+                line.setAttribute('x2', `${x2}%`);
+                line.setAttribute('y2', `${y2}%`);
+                line.setAttribute('stroke', '#34d399');
+                line.setAttribute('stroke-width', '4');
+                line.setAttribute('stroke-linecap', 'round');
+                line.setAttribute('marker-end', 'url(#arrowhead)');
+                line.setAttribute('class', 'drop-shadow-md');
+                svg.appendChild(line);
+            }
         }
 
         window.onload = () => {
