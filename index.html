@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChessSolver - Dual-Move Practice Engine</title>
+    <title>ChessSolver - High-Intelligence Practice Engine</title>
     <!-- Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chess.js for move validation and game state -->
@@ -47,7 +47,7 @@
     <header class="w-full max-w-5xl flex flex-col md:flex-row items-center justify-between pb-4 border-b border-gray-800 gap-4">
         <div>
             <h1 class="text-2xl font-bold tracking-wide text-emerald-400">ChessSolver</h1>
-            <p class="text-xs text-gray-400">Strict Dual-Move Practice Engine with GitHub Hosted Pieces</p>
+            <p class="text-xs text-gray-400">High-Intelligence Engine with Opening Knowledge & Deep Search</p>
         </div>
         
         <!-- Mode Toggles & Controls -->
@@ -123,7 +123,7 @@
 
     <!-- Footer -->
     <footer class="text-center text-xs text-gray-500 pb-2">
-        ChessSolver • GitHub Image Loader Integration
+        ChessSolver • High-Intelligence Engine Integration
     </footer>
 
     <!-- Script Logic -->
@@ -143,7 +143,7 @@
 
         let game = new Chess();
         let playerRole = 'white';
-        let trainingStep = 1; // 1 = White open, 2 = Black move 1, 3 = Black move 2
+        let trainingStep = 1; // 1 = White opening, 2 = Black Move 1, 3 = Black Move 2
         let selectedSquare = null;
         let possibleMoves = [];
         let lastMove = null;
@@ -232,12 +232,12 @@
 
             if (selectedSquare === null) {
                 if (!piece) return;
-
-                // Authorization check based on role and training step
                 const turnColor = game.turn();
+                
                 if (playerRole === 'black') {
                     if (trainingStep === 1 && turnColor !== 'w') return;
-                    if ((trainingStep === 2 || trainingStep === 3) && turnColor !== 'b') return;
+                    if (trainingStep === 2 && turnColor !== 'b') return;
+                    if (trainingStep === 3 && turnColor !== 'b') return;
                 }
 
                 if (piece.color !== turnColor) return;
@@ -268,19 +268,19 @@
 
                     if (playerRole === 'black') {
                         if (trainingStep === 1) {
-                            trainingStep = 2; // White opening done
+                            trainingStep = 2; // White opening done -> Now ready for Black move 1
                         } else if (trainingStep === 2) {
-                            trainingStep = 3; // Black move 1 done
+                            trainingStep = 3; // Black move 1 done -> Now ready for Black move 2
                         } else {
-                            trainingStep = 2; // Black move 2 done, loop back to Black move 1
+                            trainingStep = 2; // Black move 2 done -> Loop back to Black move 1
                         }
                     }
 
                     updateUI();
 
-                    // Trigger solver after completing the second black move
-                    if (playerRole === 'black' && trainingStep === 2) {
-                        setTimeout(triggerSolver, 300);
+                    // Instantly trigger solver right after Black Move 1 is made so the arrow/recommendation shows up for Black Move 2
+                    if (playerRole === 'black' && trainingStep === 3) {
+                        setTimeout(triggerSolver, 200);
                     }
                 } else {
                     if (piece && piece.color === game.turn()) {
@@ -325,7 +325,7 @@
             } else {
                 if (trainingStep === 1) {
                     banner.innerText = "White's Opening Move";
-                    stepDisp.innerText = "White Turn";
+                    stepDisp.innerText = "White Opening";
                 } else if (trainingStep === 2) {
                     banner.innerText = "Your turn: Black Move 1 of 2";
                     stepDisp.innerText = "Black Move 1";
@@ -359,31 +359,102 @@
             historyContainer.scrollTop = historyContainer.scrollHeight;
         }
 
+        // ========================================================
+        // 🧠 HIGH-INTELLIGENCE CHESS ENGINE & OPENING BOOK
+        // ========================================================
+        const openingBook = {
+            "": ["e4", "d4", "Nf3", "c4"],
+            "e4": ["e5", "c5", "e6", "d6"],
+            "e4.e5": ["Nf3", "Bc4", "Nc3"],
+            "e4.c5": ["Nf3", "Nc3", "d4"],
+            "d4": ["Nf6", "d5", "e6"],
+            "d4.Nf6": ["c4", "Nf3", "Nc3"]
+        };
+
+        const pawnsSquare = [
+             0,  0,  0,  0,  0,  0,  0,  0,
+            50, 50, 50, 50, 50, 50, 50, 50,
+            10, 10, 20, 30, 30, 20, 10, 10,
+             5,  5, 10, 25, 25, 10,  5,  5,
+             0,  0,  0, 20, 20,  0,  0,  0,
+             5, -5,-10,  0,  0,-10, -5,  5,
+             5, 10, 10,-20,-20, 10, 10,  5,
+             0,  0,  0,  0,  0,  0,  0,  0
+        ];
+
+        const knightsSquare = [
+            -10,-5,-5,-5,-5,-5,-5,-10,
+             -5, 0, 0, 0, 0, 0, 0, -5,
+             -5, 0, 5, 5, 5, 5, 0, -5,
+             -5, 0, 5,10,10, 5, 0, -5,
+             -5, 0, 5,10,10, 5, 0, -5,
+             -5, 0, 5, 5, 5, 5, 0, -5,
+             -5, 0, 0, 0, 0, 0, 0, -5,
+            -10,-5,-5,-5,-5,-5,-5,-10
+        ];
+
+        const bishopsSquare = [
+            -20,-10,-10,-10,-10,-10,-10,-20,
+            -10,  0,  0,  0,  0,  0,  0,-10,
+            -10,  0,  5, 10, 10,  5,  0,-10,
+            -10,  5,  5, 10, 10,  5,  5,-10,
+            -10,  0, 10, 10, 10, 10,  0,-10,
+            -10, 10, 10, 10, 10, 10, 10,-10,
+            -10,  5,  0,  0,  0,  0,  5,-10,
+            -20,-10,-10,-10,-10,-10,-10,-20
+        ];
+
+        const rooksSquare = [
+              0,  0,  0,  0,  0,  0,  0,  0,
+              5, 10, 10, 10, 10, 10, 10,  5,
+             -5,  0,  0,  0,  0,  0,  0, -5,
+             -5,  0,  0,  0,  0,  0,  0, -5,
+             -5,  0,  0,  0,  0,  0,  0, -5,
+             -5,  0,  0,  0,  0,  0,  0, -5,
+             -5,  0,  0,  0,  0,  0,  0, -5,
+              0,  0,  0,  5,  5,  0,  0,  0
+        ];
+
         const pieceValues = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
 
         function evaluateBoard(g) {
-            let total = 0;
+            let totalEvaluation = 0;
             const board = g.board();
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 8; c++) {
                     const p = board[r][c];
                     if (p) {
-                        const val = pieceValues[p.type];
-                        total += (p.color === 'w' ? val : -val);
+                        const index = p.color === 'w' ? (7 - r) * 8 + c : r * 8 + c;
+                        let pstable = 0;
+                        if (p.type === 'p') pstable = pawnsSquare[index];
+                        if (p.type === 'n') pstable = knightsSquare[index];
+                        if (p.type === 'b') pstable = bishopsSquare[index];
+                        if (p.type === 'r') pstable = rooksSquare[index];
+
+                        const val = pieceValues[p.type] + pstable;
+                        totalEvaluation += (p.color === 'w' ? val : -val);
                     }
                 }
             }
-            return total;
+            return totalEvaluation;
         }
 
         function minimax(g, depth, alpha, beta, isMaximizing) {
             if (depth === 0 || g.game_over()) {
                 return { score: evaluateBoard(g), move: null };
             }
-            const moves = g.moves({ verbose: true });
+
+            let moves = g.moves({ verbose: true });
             if (moves.length === 0) return { score: evaluateBoard(g), move: null };
 
+            moves.sort((a, b) => {
+                let scoreA = a.captured ? pieceValues[a.captured] : 0;
+                let scoreB = b.captured ? pieceValues[b.captured] : 0;
+                return scoreB - scoreA;
+            });
+
             let bestMove = moves[0];
+
             if (isMaximizing) {
                 let maxEval = -Infinity;
                 for (let m of moves) {
@@ -420,13 +491,28 @@
                 document.getElementById('solverOutput').innerText = "Game is over!";
                 return;
             }
-            const isMax = game.turn() === 'w';
-            const searchResult = minimax(game, 2, -Infinity, Infinity, isMax);
+
+            const history = game.history();
+            const bookKey = history.join('.');
+            let selectedMove = null;
+
+            if (openingBook[bookKey]) {
+                const bookMoves = openingBook[bookKey];
+                const chosenSan = bookMoves[Math.floor(Math.random() * bookMoves.length)];
+                const legalMoves = game.moves({ verbose: true });
+                selectedMove = legalMoves.find(m => m.san === chosenSan);
+            }
+
+            if (!selectedMove) {
+                const isMax = game.turn() === 'w';
+                const searchResult = minimax(game, 4, -Infinity, Infinity, isMax);
+                selectedMove = searchResult.move;
+            }
             
-            if (searchResult.move) {
-                lastBestMove = { from: searchResult.move.from, to: searchResult.move.to };
-                const moveSan = searchResult.move.san;
-                document.getElementById('solverOutput').innerHTML = `👉 Best Next Move for Black: <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${moveSan}</strong> (${searchResult.move.from} → ${searchResult.move.to})`;
+            if (selectedMove) {
+                lastBestMove = { from: selectedMove.from, to: selectedMove.to };
+                const moveSan = selectedMove.san;
+                document.getElementById('solverOutput').innerHTML = `👉 Best Next Move for Black: <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${moveSan}</strong> (${selectedMove.from} → ${selectedMove.to})`;
                 drawArrow();
             } else {
                 document.getElementById('solverOutput').innerText = "No moves available.";
