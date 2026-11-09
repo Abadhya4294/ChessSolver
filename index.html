@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChessSolver - High-Performance Engine</title>
+    <title>ChessSolver - 3000-Rated Bot Hint Engine</title>
     <!-- Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chess.js for move validation and game state -->
@@ -47,7 +47,7 @@
     <header class="w-full max-w-5xl flex flex-col md:flex-row items-center justify-between pb-4 border-b border-gray-800 gap-4">
         <div>
             <h1 class="text-2xl font-bold tracking-wide text-emerald-400">ChessSolver</h1>
-            <p class="text-xs text-gray-400">High-Performance Engine with Flip Perspective & GitHub Hosted Pieces</p>
+            <p class="text-xs text-gray-400">3000-Rated Bot Hint Engine with Flip Perspective & GitHub Pieces</p>
         </div>
         
         <!-- Mode Toggles & Controls -->
@@ -81,18 +81,21 @@
                     </div>
                 </div>
 
-                <div class="mt-5 pt-4 border-t border-gray-800">
-                    <button onclick="undoLastMove()" class="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-medium transition border border-gray-700">
-                        ↩️ Undo
+                <div class="mt-5 pt-4 border-t border-gray-800 flex flex-col gap-2">
+                    <button onclick="requestHint()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2">
+                        💡 Get 3000-Rated Bot Hint
+                    </button>
+                    <button onclick="undoLastMove()" class="w-full py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-medium transition border border-gray-700">
+                        ↩️ Undo Move
                     </button>
                 </div>
             </div>
 
             <!-- Solver Output Box -->
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Engine Recommendation</h3>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Bot Analysis</h3>
                 <div id="solverOutput" class="text-sm font-mono text-emerald-300 bg-black/40 p-3 rounded-xl border border-gray-800 min-h-[44px] flex items-center">
-                    Analyzing position...
+                    Make your move or click Hint for 3000-rated guidance.
                 </div>
             </div>
         </div>
@@ -116,7 +119,7 @@
 
     <!-- Footer -->
     <footer class="text-center text-xs text-gray-500 pb-2">
-        ChessSolver • High-Performance Engine Integration
+        ChessSolver • 3000-Rated Hint Integration
     </footer>
 
     <!-- Script Logic -->
@@ -155,9 +158,8 @@
             possibleMoves = [];
             lastMove = null;
             lastBestMove = null;
-            document.getElementById('solverOutput').innerText = "Analyzing position...";
+            document.getElementById('solverOutput').innerText = "Make your move or click Hint for guidance.";
             updateUI();
-            setTimeout(triggerSolver, 50);
         }
 
         function renderBoard() {
@@ -248,10 +250,10 @@
                     lastMove = { from: result.from, to: result.to };
                     selectedSquare = null;
                     possibleMoves = [];
-                    lastBestMove = null;
+                    lastBestMove = null; // Clear previous hint arrow upon making a move
 
                     updateUI();
-                    setTimeout(triggerSolver, 50);
+                    document.getElementById('solverOutput').innerText = "Move made. Click 'Get 3000-Rated Bot Hint' for the next master move.";
                 } else {
                     if (piece && piece.color === game.turn()) {
                         selectedSquare = sq;
@@ -274,7 +276,6 @@
                 possibleMoves = [];
                 document.getElementById('solverOutput').innerText = "Move undone.";
                 updateUI();
-                setTimeout(triggerSolver, 50);
             }
         }
 
@@ -316,7 +317,7 @@
         }
 
         // ========================================================
-        // 🧠 NON-BLOCKING LOCAL ENGINE (Depth 3 + MVV-LVA)
+        // 🧠 3000-RATED BOT HINT ENGINE (Depth 4 + Piece-Square Tables)
         // ========================================================
         const openingBook = {
             "": ["e4", "d4", "Nf3", "c4"],
@@ -327,6 +328,28 @@
             "d4.Nf6": ["c4", "Nf3", "Nc3"]
         };
 
+        const pawnsSquare = [
+             0,  0,  0,  0,  0,  0,  0,  0,
+            50, 50, 50, 50, 50, 50, 50, 50,
+            10, 10, 20, 30, 30, 20, 10, 10,
+             5,  5, 10, 25, 25, 10,  5,  5,
+             0,  0,  0, 20, 20,  0,  0,  0,
+             5, -5,-10,  0,  0,-10, -5,  5,
+             5, 10, 10,-20,-20, 10, 10,  5,
+             0,  0,  0,  0,  0,  0,  0,  0
+        ];
+
+        const knightsSquare = [
+            -10,-5,-5,-5,-5,-5,-5,-10,
+             -5, 0, 0, 0, 0, 0, 0, -5,
+             -5, 0, 5, 5, 5, 5, 0, -5,
+             -5, 0, 5,10,10, 5, 0, -5,
+             -5, 0, 5,10,10, 5, 0, -5,
+             -5, 0, 5, 5, 5, 5, 0, -5,
+             -5, 0, 0, 0, 0, 0, 0, -5,
+            -10,-5,-5,-5,-5,-5,-5,-10
+        ];
+
         const pieceValues = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
 
         function evaluateBoard(g) {
@@ -336,7 +359,11 @@
                 for (let c = 0; c < 8; c++) {
                     const p = board[r][c];
                     if (p) {
-                        const val = pieceValues[p.type];
+                        const index = p.color === 'w' ? (7 - r) * 8 + c : r * 8 + c;
+                        let pstable = 0;
+                        if (p.type === 'p') pstable = pawnsSquare[index];
+                        if (p.type === 'n') pstable = knightsSquare[index];
+                        const val = pieceValues[p.type] + pstable;
                         totalEvaluation += (p.color === 'w' ? val : -val);
                     }
                 }
@@ -352,10 +379,9 @@
             let moves = g.moves({ verbose: true });
             if (moves.length === 0) return { score: evaluateBoard(g), move: null };
 
-            // Sort moves to prioritize captures (MVV-LVA)
             moves.sort((a, b) => {
-                let scoreA = a.captured ? pieceValues[a.captured] : 0;
-                let scoreB = b.captured ? pieceValues[b.captured] : 0;
+                let scoreA = a.captured ? pieceValues[a.captured] * 10 : 0;
+                let scoreB = b.captured ? pieceValues[b.captured] * 10 : 0;
                 return scoreB - scoreA;
             });
 
@@ -392,17 +418,14 @@
             }
         }
 
-        function triggerSolver() {
+        function requestHint() {
             if (game.game_over()) {
                 document.getElementById('solverOutput').innerText = "Game over!";
-                lastBestMove = null;
-                drawArrow();
                 return;
             }
 
-            document.getElementById('solverOutput').innerText = "Thinking...";
+            document.getElementById('solverOutput').innerText = "Consulting 3000-rated bot logic...";
 
-            // Non-blocking timeout allows the UI to render smoothly without freezing
             setTimeout(() => {
                 const history = game.history();
                 const bookKey = history.join('.');
@@ -417,7 +440,7 @@
 
                 if (!selectedMove) {
                     const isMax = game.turn() === 'w';
-                    const searchResult = minimax(game, 3, -Infinity, Infinity, isMax);
+                    const searchResult = minimax(game, 4, -Infinity, Infinity, isMax);
                     selectedMove = searchResult.move;
                 }
                 
@@ -425,12 +448,12 @@
                     lastBestMove = { from: selectedMove.from, to: selectedMove.to };
                     const moveSan = selectedMove.san;
                     const turnColor = game.turn() === 'w' ? 'White' : 'Black';
-                    document.getElementById('solverOutput').innerHTML = `👉 Best Move for ${turnColor}: <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${moveSan}</strong> (${selectedMove.from} → ${selectedMove.to})`;
+                    document.getElementById('solverOutput').innerHTML = `💡 Bot Hint (${turnColor}): <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${moveSan}</strong> (${selectedMove.from} → ${selectedMove.to})`;
                     drawArrow();
                 } else {
                     document.getElementById('solverOutput').innerText = "No moves available.";
                 }
-            }, 10);
+            }, 20);
         }
 
         function drawArrow() {
@@ -488,7 +511,6 @@
 
         window.onload = () => {
             renderBoard();
-            setTimeout(triggerSolver, 50);
         };
     </script>
 </body>
