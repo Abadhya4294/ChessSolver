@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChessSolver - Advanced Intelligence Engine</title>
+    <title>ChessSolver - Stockfish Engine</title>
     <!-- Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chess.js for move validation and game state -->
@@ -47,7 +47,7 @@
     <header class="w-full max-w-5xl flex flex-col md:flex-row items-center justify-between pb-4 border-b border-gray-800 gap-4">
         <div>
             <h1 class="text-2xl font-bold tracking-wide text-emerald-400">ChessSolver</h1>
-            <p class="text-xs text-gray-400">Advanced Engine with Iterative Deepening, Quiescence & Transposition Table</p>
+            <p class="text-xs text-gray-400">Powered by Stockfish WebAssembly & GitHub Hosted Pieces</p>
         </div>
         
         <!-- Mode Toggles & Controls -->
@@ -90,9 +90,9 @@
 
             <!-- Solver Output Box -->
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Engine Recommendation</h3>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Stockfish Recommendation</h3>
                 <div id="solverOutput" class="text-sm font-mono text-emerald-300 bg-black/40 p-3 rounded-xl border border-gray-800 min-h-[44px] flex items-center">
-                    Analyzing position...
+                    Initializing Stockfish...
                 </div>
             </div>
         </div>
@@ -116,7 +116,7 @@
 
     <!-- Footer -->
     <footer class="text-center text-xs text-gray-500 pb-2">
-        ChessSolver • Advanced Intelligence Integration
+        ChessSolver • Stockfish Integration
     </footer>
 
     <!-- Script Logic -->
@@ -135,11 +135,49 @@
         }
 
         let game = new Chess();
-        let playerRole = 'white'; 
+        let playerRole = 'white';
         let selectedSquare = null;
         let possibleMoves = [];
         let lastMove = null;
         let lastBestMove = null;
+
+        // Initialize Stockfish Web Worker from CDN
+        let stockfish = new Worker("https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js");
+
+        stockfish.onmessage = function(event) {
+            const message = event.data;
+            // Parse Stockfish output for the best move
+            if (message && message.startsWith("bestmove")) {
+                const moveParts = message.split(" ");
+                const bestMoveStr = moveParts[1];
+                if (bestMoveStr && bestMoveStr.length >= 4) {
+                    const from = bestMoveStr.substring(0, 2);
+                    const to = bestMoveStr.substring(2, 4);
+                    lastBestMove = { from, to };
+
+                    // Convert UCI move to SAN for display
+                    const tempGame = new Chess(game.fen());
+                    const moveResult = tempGame.move({ from, to, promotion: 'q' });
+                    const san = moveResult ? moveResult.san : `${from}-${to}`;
+                    const turnColor = game.turn() === 'w' ? 'White' : 'Black';
+
+                    document.getElementById('solverOutput').innerHTML = `👉 Best Move for ${turnColor}: <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${san}</strong> (${from} → ${to})`;
+                    drawArrow();
+                }
+            }
+        };
+
+        function triggerStockfish() {
+            if (game.game_over()) {
+                document.getElementById('solverOutput').innerText = "Game over!";
+                lastBestMove = null;
+                drawArrow();
+                return;
+            }
+            document.getElementById('solverOutput').innerText = "Stockfish analyzing...";
+            stockfish.postMessage("position fen " + game.fen());
+            stockfish.postMessage("go movetime 500"); // Calculates for 0.5 seconds for instant response
+        }
 
         function setPlayerRole(role) {
             playerRole = role;
@@ -155,9 +193,8 @@
             possibleMoves = [];
             lastMove = null;
             lastBestMove = null;
-            document.getElementById('solverOutput').innerText = "Analyzing position...";
             updateUI();
-            setTimeout(triggerSolver, 50);
+            setTimeout(triggerStockfish, 100);
         }
 
         function renderBoard() {
@@ -251,7 +288,7 @@
                     lastBestMove = null;
 
                     updateUI();
-                    setTimeout(triggerSolver, 50);
+                    triggerStockfish();
                 } else {
                     if (piece && piece.color === game.turn()) {
                         selectedSquare = sq;
@@ -272,9 +309,8 @@
                 lastBestMove = null;
                 selectedSquare = null;
                 possibleMoves = [];
-                document.getElementById('solverOutput').innerText = "Move undone.";
                 updateUI();
-                setTimeout(triggerSolver, 50);
+                triggerStockfish();
             }
         }
 
@@ -313,215 +349,6 @@
             }
             historyContainer.innerHTML = html;
             historyContainer.scrollTop = historyContainer.scrollHeight;
-        }
-
-        // ========================================================
-        // 🧠 ADVANCED CHESS ENGINE (Iterative Deepening & Quiescence)
-        // ========================================================
-        const openingBook = {
-            "": ["e4", "d4", "Nf3", "c4"],
-            "e4": ["e5", "c5", "e6", "d6"],
-            "e4.e5": ["Nf3", "Bc4", "Nc3"],
-            "e4.c5": ["Nf3", "Nc3", "d4"],
-            "d4": ["Nf6", "d5", "e6"],
-            "d4.Nf6": ["c4", "Nf3", "Nc3"]
-        };
-
-        const pawnsSquare = [
-             0,  0,  0,  0,  0,  0,  0,  0,
-            50, 50, 50, 50, 50, 50, 50, 50,
-            10, 10, 20, 30, 30, 20, 10, 10,
-             5,  5, 10, 25, 25, 10,  5,  5,
-             0,  0,  0, 20, 20,  0,  0,  0,
-             5, -5,-10,  0,  0,-10, -5,  5,
-             5, 10, 10,-20,-20, 10, 10,  5,
-             0,  0,  0,  0,  0,  0,  0,  0
-        ];
-
-        const knightsSquare = [
-            -10,-5,-5,-5,-5,-5,-5,-10,
-             -5, 0, 0, 0, 0, 0, 0, -5,
-             -5, 0, 5, 5, 5, 5, 0, -5,
-             -5, 0, 5,10,10, 5, 0, -5,
-             -5, 0, 5,10,10, 5, 0, -5,
-             -5, 0, 5, 5, 5, 5, 0, -5,
-             -5, 0, 0, 0, 0, 0, 0, -5,
-            -10,-5,-5,-5,-5,-5,-5,-10
-        ];
-
-        const bishopsSquare = [
-            -20,-10,-10,-10,-10,-10,-10,-20,
-            -10,  0,  0,  0,  0,  0,  0,-10,
-            -10,  0,  5, 10, 10,  5,  0,-10,
-            -10,  5,  5, 10, 10,  5,  5,-10,
-            -10,  0, 10, 10, 10, 10,  0,-10,
-            -10, 10, 10, 10, 10, 10, 10,-10,
-            -10,  5,  0,  0,  0,  0,  5,-10,
-            -20,-10,-10,-10,-10,-10,-10,-20
-        ];
-
-        const rooksSquare = [
-              0,  0,  0,  0,  0,  0,  0,  0,
-              5, 10, 10, 10, 10, 10, 10,  5,
-             -5,  0,  0,  0,  0,  0,  0, -5,
-             -5,  0,  0,  0,  0,  0,  0, -5,
-             -5,  0,  0,  0,  0,  0,  0, -5,
-             -5,  0,  0,  0,  0,  0,  0, -5,
-             -5,  0,  0,  0,  0,  0,  0, -5,
-              0,  0,  0,  5,  5,  0,  0,  0
-        ];
-
-        const pieceValues = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
-
-        function evaluateBoard(g) {
-            let totalEvaluation = 0;
-            const board = g.board();
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    const p = board[r][c];
-                    if (p) {
-                        const index = p.color === 'w' ? (7 - r) * 8 + c : r * 8 + c;
-                        let pstable = 0;
-                        if (p.type === 'p') pstable = pawnsSquare[index];
-                        if (p.type === 'n') pstable = knightsSquare[index];
-                        if (p.type === 'b') pstable = bishopsSquare[index];
-                        if (p.type === 'r') pstable = rooksSquare[index];
-
-                        const val = pieceValues[p.type] + pstable;
-                        totalEvaluation += (p.color === 'w' ? val : -val);
-                    }
-                }
-            }
-            return totalEvaluation;
-        }
-
-        // Quiescence Search to eliminate horizon effects on captures
-        function quiescenceSearch(g, alpha, beta, isMaximizing) {
-            const standPat = evaluateBoard(g);
-            if (isMaximizing) {
-                if (standPat >= beta) return beta;
-                if (standPat > alpha) alpha = standPat;
-            } else {
-                if (standPat <= beta) return beta;
-                if (standPat < alpha) alpha = standPat;
-            }
-
-            const moves = g.moves({ verbose: true }).filter(m => m.captured);
-            // Order captures by MVV-LVA (Most Valuable Victim - Least Valuable Aggressor)
-            moves.sort((a, b) => pieceValues[b.captured] - pieceValues[a.captured]);
-
-            for (let m of moves) {
-                g.move(m);
-                const score = quiescenceSearch(g, alpha, beta, !isMaximizing);
-                g.undo();
-
-                if (isMaximizing) {
-                    if (score >= beta) return beta;
-                    if (score > alpha) alpha = score;
-                } else {
-                    if (score <= beta) return beta;
-                    if (score < alpha) alpha = score;
-                }
-            }
-            return alpha;
-        }
-
-        // Alpha-Beta Minimax with Move Ordering
-        function alphaBeta(g, depth, alpha, beta, isMaximizing) {
-            if (depth === 0) {
-                return { score: quiescenceSearch(g, alpha, beta, isMaximizing), move: null };
-            }
-            if (g.game_over()) {
-                return { score: evaluateBoard(g), move: null };
-            }
-
-            let moves = g.moves({ verbose: true });
-            if (moves.length === 0) return { score: evaluateBoard(g), move: null };
-
-            // Sort moves: Captures first, then normal moves
-            moves.sort((a, b) => {
-                let scoreA = a.captured ? pieceValues[a.captured] * 10 : 0;
-                let scoreB = b.captured ? pieceValues[b.captured] * 10 : 0;
-                return scoreB - scoreA;
-            });
-
-            let bestMove = moves[0];
-
-            if (isMaximizing) {
-                let maxEval = -Infinity;
-                for (let m of moves) {
-                    g.move(m);
-                    const evaluation = alphaBeta(g, depth - 1, alpha, beta, false).score;
-                    g.undo();
-                    if (evaluation > maxEval) {
-                        maxEval = evaluation;
-                        bestMove = m;
-                    }
-                    alpha = Math.max(alpha, evaluation);
-                    if (beta <= alpha) break;
-                }
-                return { score: maxEval, move: bestMove };
-            } else {
-                let minEval = Infinity;
-                for (let m of moves) {
-                    g.move(m);
-                    const evaluation = alphaBeta(g, depth - 1, alpha, beta, true).score;
-                    g.undo();
-                    if (evaluation < minEval) {
-                        minEval = evaluation;
-                        bestMove = m;
-                    }
-                    beta = Math.min(beta, evaluation);
-                    if (beta <= alpha) break;
-                }
-                return { score: minEval, move: bestMove };
-            }
-        }
-
-        // Iterative Deepening Search Engine (Searches up to Depth 5 smoothly)
-        function findBestMove(g) {
-            const history = g.history();
-            const bookKey = history.join('.');
-            if (openingBook[bookKey]) {
-                const bookMoves = openingBook[bookKey];
-                const chosenSan = bookMoves[Math.floor(Math.random() * bookMoves.length)];
-                const legalMoves = g.moves({ verbose: true });
-                const bookMoveObj = legalMoves.find(m => m.san === chosenSan);
-                if (bookMoveObj) return bookMoveObj;
-            }
-
-            const isMax = g.turn() === 'w';
-            let bestMove = null;
-
-            // Iterative deepening from depth 1 to 5 for maximum tactical depth without freezing
-            for (let currentDepth = 1; currentDepth <= 5; currentDepth++) {
-                const result = alphaBeta(g, currentDepth, -Infinity, Infinity, isMax);
-                if (result.move) {
-                    bestMove = result.move;
-                }
-            }
-            return bestMove;
-        }
-
-        function triggerSolver() {
-            if (game.game_over()) {
-                document.getElementById('solverOutput').innerText = "Game over!";
-                lastBestMove = null;
-                drawArrow();
-                return;
-            }
-
-            const selectedMove = findBestMove(game);
-            
-            if (selectedMove) {
-                lastBestMove = { from: selectedMove.from, to: selectedMove.to };
-                const moveSan = selectedMove.san;
-                const turnColor = game.turn() === 'w' ? 'White' : 'Black';
-                document.getElementById('solverOutput').innerHTML = `👉 Best Move for ${turnColor}: <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${moveSan}</strong> (${selectedMove.from} → ${selectedMove.to})`;
-                drawArrow();
-            } else {
-                document.getElementById('solverOutput').innerText = "No moves available.";
-            }
         }
 
         function drawArrow() {
@@ -579,7 +406,7 @@
 
         window.onload = () => {
             renderBoard();
-            setTimeout(triggerSolver, 50);
+            setTimeout(triggerStockfish, 500);
         };
     </script>
 </body>
