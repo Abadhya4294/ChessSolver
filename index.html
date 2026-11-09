@@ -143,7 +143,7 @@
 
         let game = new Chess();
         let playerRole = 'white';
-        let trainingStep = 1; // For black mode: 1 = White open, 2 = Black move 1, 3 = Black move 2
+        let trainingStep = 1; // 1 = White open, 2 = Black move 1, 3 = Black move 2
         let selectedSquare = null;
         let possibleMoves = [];
         let lastMove = null;
@@ -233,8 +233,13 @@
             if (selectedSquare === null) {
                 if (!piece) return;
 
-                // Validate color authorization
-                const turnColor = game.turn(); // 'w' or 'b' from chess.js
+                // Authorization check based on role and training step
+                const turnColor = game.turn();
+                if (playerRole === 'black') {
+                    if (trainingStep === 1 && turnColor !== 'w') return;
+                    if ((trainingStep === 2 || trainingStep === 3) && turnColor !== 'b') return;
+                }
+
                 if (piece.color !== turnColor) return;
 
                 selectedSquare = sq;
@@ -263,22 +268,21 @@
 
                     if (playerRole === 'black') {
                         if (trainingStep === 1) {
-                            trainingStep = 2; // White opening done, now Black move 1
+                            trainingStep = 2; // White opening done
                         } else if (trainingStep === 2) {
                             trainingStep = 3; // Black move 1 done
                         } else {
-                            trainingStep = 2; // Black move 2 done, reset back to Black move 1 loop
+                            trainingStep = 2; // Black move 2 done, loop back to Black move 1
                         }
                     }
 
                     updateUI();
 
-                    // If playing black and completing the 2nd black move, trigger solver
-                    if (playerRole === 'black' && trainingStep === 2 && game.history().length >= 3) {
+                    // Trigger solver after completing the second black move
+                    if (playerRole === 'black' && trainingStep === 2) {
                         setTimeout(triggerSolver, 300);
                     }
                 } else {
-                    // If clicked another piece of own color, switch selection
                     if (piece && piece.color === game.turn()) {
                         selectedSquare = sq;
                         possibleMoves = game.moves({ square: sq, verbose: true }).map(m => m.to);
