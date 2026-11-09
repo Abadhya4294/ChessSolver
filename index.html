@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChessSolver - Clean Practice Engine</title>
+    <title>ChessSolver - Automatic Practice Engine</title>
     <!-- Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chess.js for move validation and game state -->
@@ -47,7 +47,7 @@
     <header class="w-full max-w-5xl flex flex-col md:flex-row items-center justify-between pb-4 border-b border-gray-800 gap-4">
         <div>
             <h1 class="text-2xl font-bold tracking-wide text-emerald-400">ChessSolver</h1>
-            <p class="text-xs text-gray-400">Clean Practice Engine with Flip Perspective & Continuous Solver</p>
+            <p class="text-xs text-gray-400">Automatic Engine with Flip Perspective & GitHub Hosted Pieces</p>
         </div>
         
         <!-- Mode Toggles & Controls -->
@@ -81,12 +81,9 @@
                     </div>
                 </div>
 
-                <div class="mt-5 pt-4 border-t border-gray-800 flex gap-2">
-                    <button onclick="triggerSolver()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-900/30">
-                        Get Best Move & Arrow
-                    </button>
-                    <button onclick="undoLastMove()" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-medium transition border border-gray-700">
-                        Undo
+                <div class="mt-5 pt-4 border-t border-gray-800">
+                    <button onclick="undoLastMove()" class="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-medium transition border border-gray-700">
+                        ↩️ Undo
                     </button>
                 </div>
             </div>
@@ -95,7 +92,7 @@
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Engine Recommendation</h3>
                 <div id="solverOutput" class="text-sm font-mono text-emerald-300 bg-black/40 p-3 rounded-xl border border-gray-800 min-h-[44px] flex items-center">
-                    Make a move to see the engine suggestion.
+                    Make a move to see automatic suggestions.
                 </div>
             </div>
         </div>
@@ -119,7 +116,7 @@
 
     <!-- Footer -->
     <footer class="text-center text-xs text-gray-500 pb-2">
-        ChessSolver • Clean Engine Integration
+        ChessSolver • Automatic Engine Integration
     </footer>
 
     <!-- Script Logic -->
@@ -138,7 +135,7 @@
         }
 
         let game = new Chess();
-        let playerRole = 'white'; // 'white' or 'black' (controls board flip)
+        let playerRole = 'white'; // 'white' or 'black'
         let selectedSquare = null;
         let possibleMoves = [];
         let lastMove = null;
@@ -158,15 +155,15 @@
             possibleMoves = [];
             lastMove = null;
             lastBestMove = null;
-            document.getElementById('solverOutput').innerText = "Make a move to see the engine suggestion.";
+            document.getElementById('solverOutput').innerText = "Make a move to see automatic suggestions.";
             updateUI();
+            setTimeout(triggerSolver, 100);
         }
 
         function renderBoard() {
             const boardEl = document.getElementById('board');
             boardEl.innerHTML = '';
 
-            // Flip files and ranks depending on whether White or Black is at the bottom
             const files = playerRole === 'white' ? ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] : ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'];
             const ranks = playerRole === 'white' ? ['8', '7', '6', '5', '4', '3', '2', '1'] : ['1', '2', '3', '4', '5', '6', '7', '8'];
 
@@ -227,7 +224,6 @@
 
             if (selectedSquare === null) {
                 if (!piece) return;
-                // Only allow moving pieces that match the active turn
                 if (piece.color !== game.turn()) return;
 
                 selectedSquare = sq;
@@ -255,9 +251,7 @@
                     lastBestMove = null;
 
                     updateUI();
-
-                    // Automatically trigger the solver recommendation after every move!
-                    setTimeout(triggerSolver, 200);
+                    setTimeout(triggerSolver, 100);
                 } else {
                     if (piece && piece.color === game.turn()) {
                         selectedSquare = sq;
@@ -280,6 +274,7 @@
                 possibleMoves = [];
                 document.getElementById('solverOutput').innerText = "Move undone.";
                 updateUI();
+                setTimeout(triggerSolver, 100);
             }
         }
 
@@ -288,7 +283,13 @@
             renderMoveHistory();
 
             const banner = document.getElementById('statusBanner');
-            banner.innerText = game.turn() === 'w' ? "Turn: White to move" : "Turn: Black to move";
+            if (game.in_checkmate()) {
+                banner.innerText = "Game Over: Checkmate!";
+            } else if (game.in_draw()) {
+                banner.innerText = "Game Over: Draw!";
+            } else {
+                banner.innerText = game.turn() === 'w' ? "Turn: White to move" : "Turn: Black to move";
+            }
         }
 
         function renderMoveHistory() {
@@ -443,7 +444,9 @@
 
         function triggerSolver() {
             if (game.game_over()) {
-                document.getElementById('solverOutput').innerText = "Game is over!";
+                document.getElementById('solverOutput').innerText = "Game over!";
+                lastBestMove = null;
+                drawArrow();
                 return;
             }
 
@@ -468,7 +471,7 @@
                 lastBestMove = { from: selectedMove.from, to: selectedMove.to };
                 const moveSan = selectedMove.san;
                 const turnColor = game.turn() === 'w' ? 'White' : 'Black';
-                document.getElementById('solverOutput').innerHTML = `👉 Best Next Move for ${turnColor}: <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${moveSan}</strong> (${selectedMove.from} → ${selectedMove.to})`;
+                document.getElementById('solverOutput').innerHTML = `👉 Best Move for ${turnColor}: <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${moveSan}</strong> (${selectedMove.from} → ${selectedMove.to})`;
                 drawArrow();
             } else {
                 document.getElementById('solverOutput').innerText = "No moves available.";
@@ -530,6 +533,7 @@
 
         window.onload = () => {
             renderBoard();
+            triggerSolver();
         };
     </script>
 </body>
