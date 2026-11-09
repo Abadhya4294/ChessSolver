@@ -130,14 +130,13 @@
     <script>
         // ==========================================
         // ⚙️ GITHUB REPOSITORY CONFIGURATION
-        // Change these to your actual GitHub info:
         // ==========================================
         const GITHUB_CONFIG = {
-        username: "Abadhya4294",
-        repo: "ChessSolver", // Make sure this matches your exact GitHub repo name casing!
-        branch: "main",
-        folderPath: "pieces",
-        fileExtension: "png"
+            username: "Abadhya4294",   // Your GitHub Username
+            repo: "ChessSolver",         // Your Repository Name
+            branch: "main",              // Branch name
+            folderPath: "pieces",        // Folder inside repo containing images
+            fileExtension: "png"         // Image format
         };
 
         // Function to build GitHub raw URL for any piece code
@@ -233,12 +232,20 @@
             drawArrow();
         }
 
+        function getAllowedColor() {
+            // Determine whose turn it is to move based on dual-step and player role
+            if (playerRole === 'white') {
+                return inputStep === 1 ? 'w' : 'b';
+            } else {
+                return inputStep === 1 ? 'b' : 'w';
+            }
+        }
+
         function handleSquareClick(sq) {
             if (selectedSquare === null) {
                 const piece = game.get(sq);
                 if (piece) {
-                    const allowedColor = playerRole === 'white' ? (inputStep === 1 ? 'w' : 'b') : (inputStep === 1 ? 'b' : 'w');
-                    
+                    const allowedColor = getAllowedColor();
                     if (piece.color === allowedColor) {
                         selectedSquare = sq;
                         possibleMoves = game.moves({ square: sq, verbose: true }).map(m => m.to);
@@ -279,7 +286,7 @@
                     }
                 } else {
                     const piece = game.get(sq);
-                    const allowedColor = playerRole === 'white' ? (inputStep === 1 ? 'w' : 'b') : (inputStep === 1 ? 'b' : 'w');
+                    const allowedColor = getAllowedColor();
                     if (piece && piece.color === allowedColor) {
                         selectedSquare = sq;
                         possibleMoves = game.moves({ square: sq, verbose: true }).map(m => m.to);
