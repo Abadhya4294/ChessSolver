@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChessSolver - Stable Advanced Engine</title>
+    <title>ChessSolver - High-Performance Engine</title>
     <!-- Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chess.js for move validation and game state -->
@@ -47,7 +47,7 @@
     <header class="w-full max-w-5xl flex flex-col md:flex-row items-center justify-between pb-4 border-b border-gray-800 gap-4">
         <div>
             <h1 class="text-2xl font-bold tracking-wide text-emerald-400">ChessSolver</h1>
-            <p class="text-xs text-gray-400">High-Performance Local Engine with Quiescence Search</p>
+            <p class="text-xs text-gray-400">High-Performance Engine with Flip Perspective & GitHub Hosted Pieces</p>
         </div>
         
         <!-- Mode Toggles & Controls -->
@@ -116,7 +116,7 @@
 
     <!-- Footer -->
     <footer class="text-center text-xs text-gray-500 pb-2">
-        ChessSolver • Stable Engine Integration
+        ChessSolver • High-Performance Engine Integration
     </footer>
 
     <!-- Script Logic -->
@@ -316,7 +316,7 @@
         }
 
         // ========================================================
-        // 🧠 SECURE LOCAL EVALUATION & SEARCH (Depth 4 + MVV-LVA)
+        // 🧠 NON-BLOCKING LOCAL ENGINE (Depth 3 + MVV-LVA)
         // ========================================================
         const openingBook = {
             "": ["e4", "d4", "Nf3", "c4"],
@@ -352,7 +352,7 @@
             let moves = g.moves({ verbose: true });
             if (moves.length === 0) return { score: evaluateBoard(g), move: null };
 
-            // Sort moves to prioritize captures (MVV-LVA) so it never gives away pieces
+            // Sort moves to prioritize captures (MVV-LVA)
             moves.sort((a, b) => {
                 let scoreA = a.captured ? pieceValues[a.captured] : 0;
                 let scoreB = b.captured ? pieceValues[b.captured] : 0;
@@ -400,32 +400,37 @@
                 return;
             }
 
-            const history = game.history();
-            const bookKey = history.join('.');
-            let selectedMove = null;
+            document.getElementById('solverOutput').innerText = "Thinking...";
 
-            if (openingBook[bookKey]) {
-                const bookMoves = openingBook[bookKey];
-                const chosenSan = bookMoves[Math.floor(Math.random() * bookMoves.length)];
-                const legalMoves = game.moves({ verbose: true });
-                selectedMove = legalMoves.find(m => m.san === chosenSan);
-            }
+            // Non-blocking timeout allows the UI to render smoothly without freezing
+            setTimeout(() => {
+                const history = game.history();
+                const bookKey = history.join('.');
+                let selectedMove = null;
 
-            if (!selectedMove) {
-                const isMax = game.turn() === 'w';
-                const searchResult = minimax(game, 4, -Infinity, Infinity, isMax);
-                selectedMove = searchResult.move;
-            }
-            
-            if (selectedMove) {
-                lastBestMove = { from: selectedMove.from, to: selectedMove.to };
-                const moveSan = selectedMove.san;
-                const turnColor = game.turn() === 'w' ? 'White' : 'Black';
-                document.getElementById('solverOutput').innerHTML = `👉 Best Move for ${turnColor}: <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${moveSan}</strong> (${selectedMove.from} → ${selectedMove.to})`;
-                drawArrow();
-            } else {
-                document.getElementById('solverOutput').innerText = "No moves available.";
-            }
+                if (openingBook[bookKey]) {
+                    const bookMoves = openingBook[bookKey];
+                    const chosenSan = bookMoves[Math.floor(Math.random() * bookMoves.length)];
+                    const legalMoves = game.moves({ verbose: true });
+                    selectedMove = legalMoves.find(m => m.san === chosenSan);
+                }
+
+                if (!selectedMove) {
+                    const isMax = game.turn() === 'w';
+                    const searchResult = minimax(game, 3, -Infinity, Infinity, isMax);
+                    selectedMove = searchResult.move;
+                }
+                
+                if (selectedMove) {
+                    lastBestMove = { from: selectedMove.from, to: selectedMove.to };
+                    const moveSan = selectedMove.san;
+                    const turnColor = game.turn() === 'w' ? 'White' : 'Black';
+                    document.getElementById('solverOutput').innerHTML = `👉 Best Move for ${turnColor}: <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${moveSan}</strong> (${selectedMove.from} → ${selectedMove.to})`;
+                    drawArrow();
+                } else {
+                    document.getElementById('solverOutput').innerText = "No moves available.";
+                }
+            }, 10);
         }
 
         function drawArrow() {
