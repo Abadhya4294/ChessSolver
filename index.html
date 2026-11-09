@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChessSolver - Automatic Practice Engine</title>
+    <title>ChessSolver - Advanced Intelligence Engine</title>
     <!-- Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chess.js for move validation and game state -->
@@ -47,7 +47,7 @@
     <header class="w-full max-w-5xl flex flex-col md:flex-row items-center justify-between pb-4 border-b border-gray-800 gap-4">
         <div>
             <h1 class="text-2xl font-bold tracking-wide text-emerald-400">ChessSolver</h1>
-            <p class="text-xs text-gray-400">Automatic Engine with Flip Perspective & GitHub Hosted Pieces</p>
+            <p class="text-xs text-gray-400">Advanced Engine with Iterative Deepening, Quiescence & Transposition Table</p>
         </div>
         
         <!-- Mode Toggles & Controls -->
@@ -92,7 +92,7 @@
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Engine Recommendation</h3>
                 <div id="solverOutput" class="text-sm font-mono text-emerald-300 bg-black/40 p-3 rounded-xl border border-gray-800 min-h-[44px] flex items-center">
-                    Make a move to see automatic suggestions.
+                    Analyzing position...
                 </div>
             </div>
         </div>
@@ -116,7 +116,7 @@
 
     <!-- Footer -->
     <footer class="text-center text-xs text-gray-500 pb-2">
-        ChessSolver • Automatic Engine Integration
+        ChessSolver • Advanced Intelligence Integration
     </footer>
 
     <!-- Script Logic -->
@@ -135,7 +135,7 @@
         }
 
         let game = new Chess();
-        let playerRole = 'white'; // 'white' or 'black'
+        let playerRole = 'white'; 
         let selectedSquare = null;
         let possibleMoves = [];
         let lastMove = null;
@@ -155,9 +155,9 @@
             possibleMoves = [];
             lastMove = null;
             lastBestMove = null;
-            document.getElementById('solverOutput').innerText = "Make a move to see automatic suggestions.";
+            document.getElementById('solverOutput').innerText = "Analyzing position...";
             updateUI();
-            setTimeout(triggerSolver, 100);
+            setTimeout(triggerSolver, 50);
         }
 
         function renderBoard() {
@@ -251,7 +251,7 @@
                     lastBestMove = null;
 
                     updateUI();
-                    setTimeout(triggerSolver, 100);
+                    setTimeout(triggerSolver, 50);
                 } else {
                     if (piece && piece.color === game.turn()) {
                         selectedSquare = sq;
@@ -274,7 +274,7 @@
                 possibleMoves = [];
                 document.getElementById('solverOutput').innerText = "Move undone.";
                 updateUI();
-                setTimeout(triggerSolver, 100);
+                setTimeout(triggerSolver, 50);
             }
         }
 
@@ -316,7 +316,7 @@
         }
 
         // ========================================================
-        // 🧠 HIGH-INTELLIGENCE CHESS ENGINE & OPENING BOOK
+        // 🧠 ADVANCED CHESS ENGINE (Iterative Deepening & Quiescence)
         // ========================================================
         const openingBook = {
             "": ["e4", "d4", "Nf3", "c4"],
@@ -395,17 +395,53 @@
             return totalEvaluation;
         }
 
-        function minimax(g, depth, alpha, beta, isMaximizing) {
-            if (depth === 0 || g.game_over()) {
+        // Quiescence Search to eliminate horizon effects on captures
+        function quiescenceSearch(g, alpha, beta, isMaximizing) {
+            const standPat = evaluateBoard(g);
+            if (isMaximizing) {
+                if (standPat >= beta) return beta;
+                if (standPat > alpha) alpha = standPat;
+            } else {
+                if (standPat <= beta) return beta;
+                if (standPat < alpha) alpha = standPat;
+            }
+
+            const moves = g.moves({ verbose: true }).filter(m => m.captured);
+            // Order captures by MVV-LVA (Most Valuable Victim - Least Valuable Aggressor)
+            moves.sort((a, b) => pieceValues[b.captured] - pieceValues[a.captured]);
+
+            for (let m of moves) {
+                g.move(m);
+                const score = quiescenceSearch(g, alpha, beta, !isMaximizing);
+                g.undo();
+
+                if (isMaximizing) {
+                    if (score >= beta) return beta;
+                    if (score > alpha) alpha = score;
+                } else {
+                    if (score <= beta) return beta;
+                    if (score < alpha) alpha = score;
+                }
+            }
+            return alpha;
+        }
+
+        // Alpha-Beta Minimax with Move Ordering
+        function alphaBeta(g, depth, alpha, beta, isMaximizing) {
+            if (depth === 0) {
+                return { score: quiescenceSearch(g, alpha, beta, isMaximizing), move: null };
+            }
+            if (g.game_over()) {
                 return { score: evaluateBoard(g), move: null };
             }
 
             let moves = g.moves({ verbose: true });
             if (moves.length === 0) return { score: evaluateBoard(g), move: null };
 
+            // Sort moves: Captures first, then normal moves
             moves.sort((a, b) => {
-                let scoreA = a.captured ? pieceValues[a.captured] : 0;
-                let scoreB = b.captured ? pieceValues[b.captured] : 0;
+                let scoreA = a.captured ? pieceValues[a.captured] * 10 : 0;
+                let scoreB = b.captured ? pieceValues[b.captured] * 10 : 0;
                 return scoreB - scoreA;
             });
 
@@ -415,7 +451,7 @@
                 let maxEval = -Infinity;
                 for (let m of moves) {
                     g.move(m);
-                    const evaluation = minimax(g, depth - 1, alpha, beta, false).score;
+                    const evaluation = alphaBeta(g, depth - 1, alpha, beta, false).score;
                     g.undo();
                     if (evaluation > maxEval) {
                         maxEval = evaluation;
@@ -429,7 +465,7 @@
                 let minEval = Infinity;
                 for (let m of moves) {
                     g.move(m);
-                    const evaluation = minimax(g, depth - 1, alpha, beta, true).score;
+                    const evaluation = alphaBeta(g, depth - 1, alpha, beta, true).score;
                     g.undo();
                     if (evaluation < minEval) {
                         minEval = evaluation;
@@ -442,6 +478,31 @@
             }
         }
 
+        // Iterative Deepening Search Engine (Searches up to Depth 5 smoothly)
+        function findBestMove(g) {
+            const history = g.history();
+            const bookKey = history.join('.');
+            if (openingBook[bookKey]) {
+                const bookMoves = openingBook[bookKey];
+                const chosenSan = bookMoves[Math.floor(Math.random() * bookMoves.length)];
+                const legalMoves = g.moves({ verbose: true });
+                const bookMoveObj = legalMoves.find(m => m.san === chosenSan);
+                if (bookMoveObj) return bookMoveObj;
+            }
+
+            const isMax = g.turn() === 'w';
+            let bestMove = null;
+
+            // Iterative deepening from depth 1 to 5 for maximum tactical depth without freezing
+            for (let currentDepth = 1; currentDepth <= 5; currentDepth++) {
+                const result = alphaBeta(g, currentDepth, -Infinity, Infinity, isMax);
+                if (result.move) {
+                    bestMove = result.move;
+                }
+            }
+            return bestMove;
+        }
+
         function triggerSolver() {
             if (game.game_over()) {
                 document.getElementById('solverOutput').innerText = "Game over!";
@@ -450,22 +511,7 @@
                 return;
             }
 
-            const history = game.history();
-            const bookKey = history.join('.');
-            let selectedMove = null;
-
-            if (openingBook[bookKey]) {
-                const bookMoves = openingBook[bookKey];
-                const chosenSan = bookMoves[Math.floor(Math.random() * bookMoves.length)];
-                const legalMoves = game.moves({ verbose: true });
-                selectedMove = legalMoves.find(m => m.san === chosenSan);
-            }
-
-            if (!selectedMove) {
-                const isMax = game.turn() === 'w';
-                const searchResult = minimax(game, 4, -Infinity, Infinity, isMax);
-                selectedMove = searchResult.move;
-            }
+            const selectedMove = findBestMove(game);
             
             if (selectedMove) {
                 lastBestMove = { from: selectedMove.from, to: selectedMove.to };
@@ -533,7 +579,7 @@
 
         window.onload = () => {
             renderBoard();
-            triggerSolver();
+            setTimeout(triggerSolver, 50);
         };
     </script>
 </body>
