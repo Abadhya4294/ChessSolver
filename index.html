@@ -92,7 +92,7 @@
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Stockfish Analysis</h3>
                 <div id="solverOutput" class="text-sm font-mono text-emerald-300 bg-black/40 p-3 rounded-xl border border-gray-800 min-h-[44px] flex items-center">
-                    Initializing Stockfish...
+                    Initializing Stockfish Engine...
                 </div>
             </div>
         </div>
@@ -140,37 +140,42 @@
         let possibleMoves = [];
         let lastMove = null;
         let lastBestMove = null;
-
-        // Initialize Official Stockfish Web Worker via CDN
         let stockfish = null;
-        try {
-            stockfish = new Worker("https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js");
-        } catch (e) {
-            console.error("Worker creation failed:", e);
-        }
 
-        if (stockfish) {
-            stockfish.onmessage = function(event) {
-                const message = event.data;
-                if (message && message.startsWith("bestmove")) {
-                    const moveParts = message.split(" ");
-                    const bestMoveStr = moveParts[1];
-                    if (bestMoveStr && bestMoveStr.length >= 4) {
-                        const from = bestMoveStr.substring(0, 2);
-                        const to = bestMoveStr.substring(2, 4);
-                        lastBestMove = { from, to };
+        // Initialize Stockfish securely using a Blob Worker to bypass CORS blocks
+        function initStockfish() {
+            try {
+                const sfScript = 'importScripts("https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js");';
+                const blob = new Blob([sfScript], { type: 'application/javascript' });
+                stockfish = new Worker(URL.createObjectURL(blob));
 
-                        const tempGame = new Chess(game.fen());
-                        const moveResult = tempGame.move({ from, to, promotion: 'q' });
-                        const san = moveResult ? moveResult.san : `${from}-${to}`;
-                        const turnColor = game.turn() === 'w' ? 'White' : 'Black';
+                stockfish.onmessage = function(event) {
+                    const message = event.data;
+                    if (message && message.startsWith("bestmove")) {
+                        const moveParts = message.split(" ");
+                        const bestMoveStr = moveParts[1];
+                        if (bestMoveStr && bestMoveStr.length >= 4) {
+                            const from = bestMoveStr.substring(0, 2);
+                            const to = bestMoveStr.substring(2, 4);
+                            lastBestMove = { from, to };
 
-                        document.getElementById('solverOutput').innerHTML = `👉 Best Move (${turnColor}): <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${san}</strong> (${from} → ${to})`;
-                        drawArrow();
+                            const tempGame = new Chess(game.fen());
+                            const moveResult = tempGame.move({ from, to, promotion: 'q' });
+                            const san = moveResult ? moveResult.san : `${from}-${to}`;
+                            const turnColor = game.turn() === 'w' ? 'White' : 'Black';
+
+                            document.getElementById('solverOutput').innerHTML = `👉 Best Move (${turnColor}): <strong class="text-white font-mono bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">${san}</strong> (${from} → ${to})`;
+                            drawArrow();
+                        }
                     }
-                }
-            };
-            stockfish.postMessage("uci");
+                };
+
+                stockfish.postMessage("uci");
+                document.getElementById('solverOutput').innerText = "Stockfish engine ready.";
+            } catch (e) {
+                console.error("Stockfish worker initialization failed:", e);
+                document.getElementById('solverOutput').innerText = "Error loading engine worker.";
+            }
         }
 
         function triggerStockfish() {
@@ -422,8 +427,9 @@
         }
 
         window.onload = () => {
+            initStockfish();
             renderBoard();
-            setTimeout(triggerStockfish, 500);
+            setTimeout(triggerStockfish, 600);
         };
     </script>
 </body>
