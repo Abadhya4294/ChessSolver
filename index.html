@@ -1,3 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChessSolver - High-Intelligence Practice Engine</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chess.js for move validation and game state -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <style>
+        .board-container {
+            width: min(72vh, 72vw);
+            height: min(72vh, 72vw);
+            aspect-ratio: 1 / 1;
+        }
+        .square {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            user-select: none;
+            cursor: pointer;
+        }
+        .light { background-color: #ebecd0; }
+        .dark { background-color: #739552; }
+        
+        .highlight-selected {
+            background-color: rgba(255, 255, 0, 0.4) !important;
+        }
+        .highlight-last {
+            background-color: rgba(155, 199, 0, 0.41) !important;
+        }
+        .piece-img {
+            width: 85%;
+            height: 85%;
+            object-fit: contain;
+            pointer-events: none;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2));
+        }
+    </style>
+</head>
+<body class="bg-[#1e1e1e] text-gray-100 font-sans min-h-screen flex flex-col items-center justify-between p-4">
+
+    <!-- Header -->
+    <header class="w-full max-w-5xl flex flex-col md:flex-row items-center justify-between pb-4 border-b border-gray-800 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-wide text-emerald-400">ChessSolver</h1>
+            <p class="text-xs text-gray-400">High-Intelligence Engine with Opening Knowledge & Deep Search</p>
+        </div>
+        
+        <!-- Mode Toggles & Controls -->
+        <div class="flex items-center gap-3">
+            <div class="bg-gray-800 p-1 rounded-xl flex items-center border border-gray-700">
+                <button id="modeWhiteBtn" onclick="setPlayerRole('white')" class="px-4 py-1.5 text-xs font-semibold rounded-lg transition-all bg-emerald-600 text-white shadow">Playing White</button>
+                <button id="modeBlackBtn" onclick="setPlayerRole('black')" class="px-4 py-1.5 text-xs font-semibold rounded-lg transition-all text-gray-400 hover:text-white">Playing Black</button>
+            </div>
+            <button onclick="resetGame()" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-xs font-medium transition text-gray-300">
+                🔄 Reset
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Layout -->
+    <main class="w-full max-w-5xl flex flex-col lg:flex-row items-center justify-center gap-6 my-auto py-4">
+        
+        <!-- Left Panel: Status & Instructions -->
+        <div class="w-full lg:w-80 flex flex-col gap-4">
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Session Status</h2>
+                
+                <div id="statusBanner" class="p-3 rounded-xl bg-emerald-950/50 border border-emerald-800/60 text-emerald-300 text-sm font-semibold mb-4">
+                    White's opening move
+                </div>
+                
+                <div class="space-y-3 text-xs text-gray-300">
+                    <div class="flex justify-between items-center bg-gray-800/60 px-3 py-2 rounded-lg">
+                        <span class="text-gray-400">Current Role</span>
+                        <span id="roleDisplay" class="font-bold text-white capitalize">White</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-gray-800/60 px-3 py-2 rounded-lg">
+                        <span class="text-gray-400">Step Count</span>
+                        <span id="stepDisplay" class="font-bold text-emerald-400">White Opening</span>
+                    </div>
+                </div>
+
+                <div class="mt-5 pt-4 border-t border-gray-800 flex gap-2">
+                    <button onclick="triggerSolver()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-900/30">
+                        Get Best Move & Arrow
+                    </button>
+                    <button onclick="undoLastMove()" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-medium transition border border-gray-700">
+                        Undo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Solver Output Box -->
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Engine Recommendation</h3>
+                <div id="solverOutput" class="text-sm font-mono text-emerald-300 bg-black/40 p-3 rounded-xl border border-gray-800 min-h-[44px] flex items-center">
+                    Make White's opening move to begin.
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Board Container -->
+        <div class="relative board-container bg-gray-900 rounded-2xl p-2 shadow-2xl border border-gray-800 flex items-center justify-center">
+            <div id="board" class="w-full h-full grid grid-cols-8 grid-rows-8 relative rounded-lg overflow-hidden border border-gray-700"></div>
+            <!-- SVG Overlay for Move Arrows -->
+            <svg id="arrowOverlay" class="absolute inset-0 w-full h-full pointer-events-none z-20"></svg>
+        </div>
+
+        <!-- Right Panel: Move History -->
+        <div class="w-full lg:w-72 bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl flex flex-col h-[400px]">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Move History</h2>
+            <div id="moveHistory" class="flex-1 overflow-y-auto space-y-1.5 pr-1 font-mono text-xs text-gray-300">
+                <div class="text-gray-500 italic">No moves recorded yet.</div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center text-xs text-gray-500 pb-2">
+        ChessSolver • High-Intelligence Engine Integration
+    </footer>
+
     <!-- Script Logic -->
     <script>
         const GITHUB_CONFIG = {
@@ -15,6 +143,7 @@
 
         let game = new Chess();
         let playerRole = 'white';
+        let trainingStep = 1; // 1 = White opening, 2 = Black Move 1, 3 = Black Move 2
         let selectedSquare = null;
         let possibleMoves = [];
         let lastMove = null;
@@ -30,6 +159,7 @@
 
         function resetGame() {
             game = new Chess();
+            trainingStep = 1;
             selectedSquare = null;
             possibleMoves = [];
             lastMove = null;
@@ -102,8 +232,14 @@
 
             if (selectedSquare === null) {
                 if (!piece) return;
-                // Only allow clicking pieces belonging to the current turn
-                if (piece.color !== game.turn()) return;
+
+                // Explicit authorization based on player role and custom training step
+                if (playerRole === 'black') {
+                    if (trainingStep === 1 && piece.color !== 'w') return;
+                    if ((trainingStep === 2 || trainingStep === 3) && piece.color !== 'b') return;
+                } else {
+                    if (piece.color !== game.turn()) return;
+                }
 
                 selectedSquare = sq;
                 possibleMoves = game.moves({ square: sq, verbose: true }).map(m => m.to);
@@ -129,17 +265,26 @@
                     possibleMoves = [];
                     lastBestMove = null;
 
+                    if (playerRole === 'black') {
+                        if (trainingStep === 1) {
+                            trainingStep = 2; // White opening done -> Now allow Black move 1
+                        } else if (trainingStep === 2) {
+                            trainingStep = 3; // Black move 1 done -> Now allow Black move 2
+                        } else {
+                            trainingStep = 2; // Black move 2 done -> Loop back to Black move 1
+                        }
+                    }
+
                     updateUI();
 
-                    // If it is now Black's turn (meaning White just moved, or Black just finished a move), trigger the solver automatically
-                    if (game.turn() === 'b') {
+                    // Automatically trigger the solver recommendation after Black moves are complete
+                    if (playerRole === 'black' && trainingStep === 3) {
                         setTimeout(triggerSolver, 200);
-                    } else {
-                        // Clear solver box when it's White's turn again
-                        document.getElementById('solverOutput').innerText = "Make your move as White.";
                     }
                 } else {
-                    if (piece && piece.color === game.turn()) {
+                    // Switch selection if clicking another valid piece of the same allowed color
+                    const currentAllowedColor = playerRole === 'black' ? (trainingStep === 1 ? 'w' : 'b') : game.turn();
+                    if (piece && piece.color === currentAllowedColor) {
                         selectedSquare = sq;
                         possibleMoves = game.moves({ square: sq, verbose: true }).map(m => m.to);
                     } else {
@@ -154,6 +299,11 @@
         function undoLastMove() {
             const undone = game.undo();
             if (undone) {
+                if (playerRole === 'black') {
+                    if (trainingStep === 3) trainingStep = 2;
+                    else if (trainingStep === 2) trainingStep = 1;
+                    else trainingStep = 3;
+                }
                 lastMove = null;
                 lastBestMove = null;
                 selectedSquare = null;
@@ -170,12 +320,20 @@
             const banner = document.getElementById('statusBanner');
             const stepDisp = document.getElementById('stepDisplay');
 
-            if (game.turn() === 'w') {
-                banner.innerText = playerRole === 'black' ? "White's turn (Opening/Intermediate Move)" : "Your turn to move (White)";
-                stepDisp.innerText = "White Turn";
+            if (playerRole === 'white') {
+                banner.innerText = "Your turn to move";
+                stepDisp.innerText = "Standard Play";
             } else {
-                banner.innerText = "Your turn to move (Black)";
-                stepDisp.innerText = "Black Turn";
+                if (trainingStep === 1) {
+                    banner.innerText = "White's Opening Move";
+                    stepDisp.innerText = "White Opening";
+                } else if (trainingStep === 2) {
+                    banner.innerText = "Your turn: Black Move 1 of 2";
+                    stepDisp.innerText = "Black Move 1";
+                } else {
+                    banner.innerText = "Your turn: Black Move 2 of 2";
+                    stepDisp.innerText = "Black Move 2";
+                }
             }
         }
 
@@ -419,3 +577,5 @@
             renderBoard();
         };
     </script>
+</body>
+</html>
